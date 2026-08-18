@@ -1,0 +1,57 @@
+{
+  "name": "malayalam-fail-sounds",
+  "displayName": "Malayalam Fail Sounds",
+  "description": "Plays a random Malayalam sound clip whenever a terminal command exits with a non-zero code.",
+  "version": "0.0.1",
+  "publisher": "Fahadk-c",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.94.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "Malayalam Fail Sounds",
+      "properties": {
+        "malayalamFailSounds.soundsFolder": {
+          "type": "string",
+          "default": "",
+          "description": "Optional absolute path to a folder of your own .mp3/.wav clips. If empty, uses the bundled sounds/malayalam folder."
+        },
+        "malayalamFailSounds.cooldownMs": {
+          "type": "number",
+          "default": 2000,
+          "description": "Minimum milliseconds between two sound triggers, to avoid spamming on repeated fast failures."
+        },
+        "malayalamFailSounds.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Toggle sound-on-fail on or off."
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "malayalamFailSounds.toggle",
+        "title": "Malayalam Fail Sounds: Toggle On/Off"
+      },
+      {
+        "command": "malayalamFailSounds.testSound",
+        "title": "Malayalam Fail Sounds: Play a Random Test Sound"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "generate-placeholders": "node scripts/generate-placeholder-sounds.js"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.94.0",
+    "typescript": "^5.5.0"
+  }
+}
