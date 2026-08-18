@@ -82,9 +82,26 @@ Both are available from the Command Palette (<kbd>Cmd/Ctrl</kbd> +
 | `malayalamFailSounds.cooldownMs` | number | `2000` | Minimum milliseconds between two triggers. |
 | `malayalamFailSounds.soundsFolder` | string | `""` | Absolute path to your own clips folder. Empty means use the bundled `sounds/malayalam`. |
 | `malayalamFailSounds.playbackMode` | string | `"auto"` | `auto`, `system`, or `webview`. See below. |
+| `malayalamFailSounds.ignoredExitCodes` | number[] | `[130]` | Exit codes that never trigger a sound. |
+| `malayalamFailSounds.ignoredCommands` | string[] | grep/rg/git diff/diff | Regex patterns; a match means no sound. |
 
 Changing `soundsFolder` reloads the sound pool immediately — no window reload
 required.
+
+## What counts as a failure
+
+A non-zero exit code does not always mean something broke. `grep` returns 1
+when it simply found no matches, `git diff --quiet` returns 1 to say "there
+are changes", and Ctrl+C returns 130. Announcing those gets old fast, so two
+settings filter them out:
+
+- `ignoredExitCodes` — defaults to `[130]`, i.e. Ctrl+C stays silent.
+- `ignoredCommands` — regexes matched against the command line, defaulting to
+  `grep`, `rg`, `git diff` and `diff`.
+
+Word boundaries in the defaults keep them narrow: `grep foo` is silent, but
+`grepper` and `git difftool` still make noise. An invalid regex is skipped
+with a one-time warning rather than silencing everything.
 
 ## Playback modes
 

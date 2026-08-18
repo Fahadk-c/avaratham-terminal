@@ -275,6 +275,37 @@ function playSound(context: vscode.ExtensionContext, filePath: string) {
   playViaWebview(context, filePath);
 }
 
+let warnedInvalidPattern = false;
+
+function isIgnoredFailure(e: vscode.TerminalShellExecutionEndEvent): boolean {
+  const config = getConfig();
+
+  const ignoredCodes = config.get<number[]>('ignoredExitCodes', [130]);
+  if (e.exitCode !== undefined && ignoredCodes.includes(e.exitCode)) {
+    return true;
+  }
+
+  const commandLine = e.execution.commandLine?.value?.trim() ?? '';
+  if (!commandLine) return false;
+
+  for (const pattern of config.get<string[]>('ignoredCommands', [])) {
+    try {
+      if (new RegExp(pattern).test(commandLine)) return true;
+    } catch {
+      // A bad user-supplied regex should not silence every sound; skip it and
+      // say so once per session.
+      if (!warnedInvalidPattern) {
+        warnedInvalidPattern = true;
+        vscode.window.showWarningMessage(
+          `Malayalam Fail Sounds: ignoring invalid regex in malayalamFailSounds.ignoredCommands: ${pattern}`
+        );
+      }
+    }
+  }
+
+  return false;
+}
+
 function triggerFailSound(context: vscode.ExtensionContext) {
   if (!getConfig().get<boolean>('enabled', true)) return;
 
@@ -298,7 +329,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.window.onDidEndTerminalShellExecution((e) => {
-      if (e.exitCode !== undefined && e.exitCode !== 0) {
+      if (e.exitCode !== undefined && e.exitCode !== 0 && !isIgnoredFailure(e)) {
         triggerFailSound(context);
       }
     })

@@ -48,6 +48,29 @@
           ],
           "default": "auto",
           "description": "How sounds are played. 'auto' is recommended: it needs no interaction, while the webview player is subject to the browser autoplay policy."
+        },
+        "malayalamFailSounds.ignoredExitCodes": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "default": [
+            130
+          ],
+          "description": "Exit codes that should never trigger a sound. 130 is Ctrl+C, which is not really a failure."
+        },
+        "malayalamFailSounds.ignoredCommands": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "^\\s*grep\\b",
+            "^\\s*rg\\b",
+            "^\\s*git\\s+diff\\b",
+            "^\\s*diff\\b"
+          ],
+          "description": "Regular expressions matched against the command line. A match means no sound, even on a non-zero exit. Defaults cover commands that use exit code 1 to mean 'no matches' rather than 'failed'."
         }
       }
     },
