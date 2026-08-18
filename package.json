@@ -8,8 +8,12 @@
   "engines": {
     "vscode": "^1.94.0"
   },
-  "categories": ["Other"],
-  "activationEvents": ["onStartupFinished"],
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "configuration": {
@@ -29,6 +33,21 @@
           "type": "boolean",
           "default": true,
           "description": "Toggle sound-on-fail on or off."
+        },
+        "malayalamFailSounds.playbackMode": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "system",
+            "webview"
+          ],
+          "enumDescriptions": [
+            "Use the system audio player if one is available, otherwise fall back to the built-in webview player.",
+            "Only use the system audio player (afplay / PowerShell / ffplay etc.).",
+            "Only use the built-in webview player. Requires clicking 'Enable fail sounds' once per session."
+          ],
+          "default": "auto",
+          "description": "How sounds are played. 'auto' is recommended: it needs no interaction, while the webview player is subject to the browser autoplay policy."
         }
       }
     },

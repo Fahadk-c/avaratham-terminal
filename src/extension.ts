@@ -1,13 +1,22 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
+import { spawn, execFileSync } from 'child_process';
 
 const AUDIO_EXTENSIONS = /\.(mp3|wav|ogg)$/i;
 
 let soundPool: string[] = [];
 let lastPlayed: string | null = null;
 let lastTriggerTime = 0;
+
 let activePanel: vscode.WebviewPanel | undefined;
+let webviewReady = false;
+let pendingSrc: string | undefined;
+let warnedAboutUnlock = false;
+
+type SystemPlayer = { cmd: string; args: (file: string) => string[] };
+// undefined = not probed yet, null = probed and none available
+let systemPlayer: SystemPlayer | null | undefined;
 
 function getConfig() {
   return vscode.workspace.getConfiguration('malayalamFailSounds');
@@ -41,11 +50,157 @@ function pickSound(): string | null {
   return choice;
 }
 
+/* ---------- playback: system audio player ---------- */
+
+function hasCommand(cmd: string): boolean {
+  try {
+    execFileSync(process.platform === 'win32' ? 'where' : 'which', [cmd], { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function powershellScript(file: string): string {
+  const escaped = file.replace(/'/g, "''");
+  if (/\.wav$/i.test(file)) {
+    return `(New-Object Media.SoundPlayer '${escaped}').PlaySync();`;
+  }
+  // SoundPlayer is WAV-only, so mp3/ogg go through MediaPlayer, which plays
+  // asynchronously — sleep for the clip's own length so the process lives long
+  // enough to finish it.
+  return [
+    `Add-Type -AssemblyName presentationCore;`,
+    `$p = New-Object System.Windows.Media.MediaPlayer;`,
+    `$p.Open([uri]'${escaped}');`,
+    `$p.Play();`,
+    `Start-Sleep -Milliseconds 400;`,
+    `$ms = 5000;`,
+    `if ($p.NaturalDuration.HasTimeSpan) { $ms = $p.NaturalDuration.TimeSpan.TotalMilliseconds };`,
+    `Start-Sleep -Milliseconds $ms;`
+  ].join(' ');
+}
+
+function resolveSystemPlayer(): SystemPlayer | null {
+  if (systemPlayer !== undefined) return systemPlayer;
+
+  const candidates: SystemPlayer[] =
+    process.platform === 'darwin'
+      ? [{ cmd: 'afplay', args: (f) => [f] }]
+      : process.platform === 'win32'
+        ? [{
+            cmd: 'powershell',
+            args: (f) => ['-NoProfile', '-WindowStyle', 'Hidden', '-Command', powershellScript(f)]
+          }]
+        : [
+            // ffplay first: it is the only one here that handles wav, mp3 and ogg alike.
+            { cmd: 'ffplay', args: (f) => ['-nodisp', '-autoexit', '-loglevel', 'quiet', f] },
+            { cmd: 'paplay', args: (f) => [f] },
+            { cmd: 'play', args: (f) => ['-q', f] },
+            { cmd: 'mpg123', args: (f) => ['-q', f] },
+            { cmd: 'aplay', args: (f) => ['-q', f] }
+          ];
+
+  systemPlayer = candidates.find((c) => hasCommand(c.cmd)) ?? null;
+  return systemPlayer;
+}
+
+function playViaSystem(context: vscode.ExtensionContext, filePath: string): boolean {
+  const player = resolveSystemPlayer();
+  if (!player) return false;
+
+  try {
+    const child = spawn(player.cmd, player.args(filePath), {
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true
+    });
+    child.on('error', () => {
+      // The command resolved but could not actually run — stop trying it and
+      // let the webview handle this and every later sound.
+      systemPlayer = null;
+      if (getConfig().get<string>('playbackMode', 'auto') !== 'system') {
+        playViaWebview(context, filePath);
+      }
+    });
+    child.unref();
+    return true;
+  } catch {
+    systemPlayer = null;
+    return false;
+  }
+}
+
+/* ---------- playback: webview fallback ---------- */
+
 function getNonce(): string {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
-function playSound(context: vscode.ExtensionContext, filePath: string) {
+function webviewHtml(webview: vscode.Webview): string {
+  const nonce = getNonce();
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; media-src ${webview.cspSource}; style-src 'nonce-${nonce}'; script-src 'nonce-${nonce}';">
+  <style nonce="${nonce}">
+    body {
+      margin: 0; height: 100vh; display: flex; align-items: center; justify-content: center;
+      font-family: var(--vscode-font-family); font-size: 13px; color: var(--vscode-foreground);
+      text-align: center;
+    }
+    button {
+      padding: 10px 16px; font-size: 13px; cursor: pointer; border: none; border-radius: 3px;
+      background: var(--vscode-button-background); color: var(--vscode-button-foreground);
+    }
+    #status { margin-top: 10px; opacity: 0.75; }
+  </style>
+</head>
+<body>
+  <div>
+    <button id="unlock">Enable fail sounds</button>
+    <div id="status">Click once to allow audio in this panel.</div>
+  </div>
+  <audio id="clip"></audio>
+  <script nonce="${nonce}">
+    const api = acquireVsCodeApi();
+    const clip = document.getElementById('clip');
+    const unlock = document.getElementById('unlock');
+    const status = document.getElementById('status');
+
+    function markUnlocked() {
+      unlock.style.display = 'none';
+      status.textContent = 'Audio enabled. Leave this tab open.';
+    }
+
+    unlock.addEventListener('click', () => {
+      // The click itself grants this document sticky user activation, which is
+      // what the autoplay policy wants. Replaying the last clip is just feedback.
+      markUnlocked();
+      if (clip.src) {
+        clip.currentTime = 0;
+        clip.play().catch((e) => { status.textContent = 'Still blocked: ' + e.message; });
+      }
+    });
+
+    window.addEventListener('message', (event) => {
+      const msg = event.data;
+      if (!msg || msg.type !== 'play') return;
+      clip.src = msg.src;
+      clip.currentTime = 0;
+      clip.play().then(markUnlocked, (e) => {
+        api.postMessage({ type: 'blocked', reason: e.name + ': ' + e.message });
+      });
+    });
+
+    api.postMessage({ type: 'ready' });
+  </script>
+</body>
+</html>`;
+}
+
+function playViaWebview(context: vscode.ExtensionContext, filePath: string) {
   if (!activePanel) {
     activePanel = vscode.window.createWebviewPanel(
       'malayalamFailSoundPlayer',
@@ -54,44 +209,70 @@ function playSound(context: vscode.ExtensionContext, filePath: string) {
       {
         enableScripts: true,
         retainContextWhenHidden: true,
-        localResourceRoots: [vscode.Uri.file(path.dirname(filePath)), vscode.Uri.file(context.extensionPath)]
+        localResourceRoots: [
+          vscode.Uri.file(context.extensionPath),
+          vscode.Uri.file(resolveSoundsFolder(context.extensionPath)),
+          vscode.Uri.file(path.dirname(filePath))
+        ]
       }
     );
+
+    webviewReady = false;
+    pendingSrc = undefined;
+
     activePanel.onDidDispose(() => {
       activePanel = undefined;
+      webviewReady = false;
+      pendingSrc = undefined;
     });
-    activePanel.webview.onDidReceiveMessage((msg: string) => {
-      vscode.window.showInformationMessage(`Fail Sound debug: ${msg}`);
+
+    activePanel.webview.onDidReceiveMessage((msg: any) => {
+      if (msg?.type === 'ready') {
+        webviewReady = true;
+        if (pendingSrc && activePanel) {
+          activePanel.webview.postMessage({ type: 'play', src: pendingSrc });
+          pendingSrc = undefined;
+        }
+      } else if (msg?.type === 'blocked' && !warnedAboutUnlock) {
+        warnedAboutUnlock = true;
+        vscode.window.showWarningMessage(
+          'Malayalam Fail Sounds: click "Enable fail sounds" once in the Fail Sound panel to allow audio playback.'
+        );
+      }
     });
+
+    activePanel.webview.html = webviewHtml(activePanel.webview);
   }
 
-  const webview = activePanel.webview;
-  const audioUri = webview.asWebviewUri(vscode.Uri.file(filePath));
-  const nonce = getNonce();
+  const src = activePanel.webview.asWebviewUri(vscode.Uri.file(filePath)).toString();
+  if (webviewReady) {
+    activePanel.webview.postMessage({ type: 'play', src });
+  } else {
+    // The webview script has not signalled readiness yet; send it on 'ready'.
+    pendingSrc = src;
+  }
+}
 
-  webview.html = `<!DOCTYPE html>
-    <html>
-    <head>
-      <meta http-equiv="Content-Security-Policy"
-            content="default-src 'none'; media-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
-    </head>
-    <body style="margin:0;background:transparent;">
-      <audio id="clip" src="${audioUri}?t=${nonce}"></audio>
-      <script nonce="${nonce}">
-        const vscodeApi = acquireVsCodeApi();
-        const clip = document.getElementById('clip');
-        clip.onerror = () => {
-          const err = clip.error;
-          vscodeApi.postMessage('LOAD FAILED code=' + (err ? err.code : '?') + ' ' + (err ? err.message : ''));
-        };
-        clip.onplaying = () => vscodeApi.postMessage('PLAYING (audio started)');
-        clip.play().then(
-          () => vscodeApi.postMessage('play() resolved OK'),
-          (e) => vscodeApi.postMessage('play() REJECTED ' + e.name + ': ' + e.message)
-        );
-      </script>
-    </body>
-    </html>`;
+/* ---------- dispatch ---------- */
+
+function playSound(context: vscode.ExtensionContext, filePath: string) {
+  const mode = getConfig().get<string>('playbackMode', 'auto');
+
+  if (mode === 'webview') {
+    playViaWebview(context, filePath);
+    return;
+  }
+
+  if (playViaSystem(context, filePath)) return;
+
+  if (mode === 'system') {
+    vscode.window.showWarningMessage(
+      'Malayalam Fail Sounds: no system audio player found. Set malayalamFailSounds.playbackMode to "auto" to fall back to the built-in player.'
+    );
+    return;
+  }
+
+  playViaWebview(context, filePath);
 }
 
 function triggerFailSound(context: vscode.ExtensionContext) {
@@ -100,6 +281,10 @@ function triggerFailSound(context: vscode.ExtensionContext) {
   const cooldownMs = getConfig().get<number>('cooldownMs', 2000);
   const now = Date.now();
   if (now - lastTriggerTime < cooldownMs) return;
+
+  // Re-read the folder each time so clips added or removed while VS Code is
+  // running are picked up without a window reload.
+  loadSounds(context.extensionPath);
 
   const sound = pickSound();
   if (!sound) return;
@@ -124,6 +309,9 @@ export function activate(context: vscode.ExtensionContext) {
       if (e.affectsConfiguration('malayalamFailSounds.soundsFolder')) {
         loadSounds(context.extensionPath);
       }
+      if (e.affectsConfiguration('malayalamFailSounds.playbackMode')) {
+        systemPlayer = undefined; // re-probe on next play
+      }
     })
   );
 
@@ -140,6 +328,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand('malayalamFailSounds.testSound', () => {
+      loadSounds(context.extensionPath);
       const sound = pickSound();
       if (sound) {
         playSound(context, sound);

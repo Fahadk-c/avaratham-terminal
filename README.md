@@ -14,9 +14,9 @@ non-zero exit code, it picks a random clip from a sounds folder and plays it.
   next draw (as long as there is more than one clip).
 - **Cooldown** — a configurable minimum gap between triggers so a burst of
   fast failures doesn't turn into a wall of noise.
-- **Playback** — a reused webview panel with an `<audio autoplay>` tag. This
-  works the same on macOS, Linux and Windows, with no dependency on system
-  audio CLI tools like `afplay`, `aplay` or `ffplay`.
+- **Playback** — the system audio player (`afplay` on macOS, PowerShell on
+  Windows, `ffplay`/`paplay`/`aplay` on Linux), with a webview player as
+  fallback. See [Playback modes](#playback-modes) for why.
 
 > Terminal shell integration must be active for the extension to see exit
 > codes. It is enabled by default in recent VS Code versions for bash, zsh,
@@ -34,8 +34,11 @@ Host** — a second VS Code window with the extension loaded. Open a terminal in
 that window and run something that fails, e.g.:
 
 ```bash
-exit 1
+false
 ```
+
+(Use `false`, not `exit 1` — `exit` closes the terminal session before shell
+integration can report the result.)
 
 Use `npm run watch` instead of `npm run compile` if you want TypeScript to
 recompile on every save while you work.
@@ -78,9 +81,32 @@ Both are available from the Command Palette (<kbd>Cmd/Ctrl</kbd> +
 | `malayalamFailSounds.enabled` | boolean | `true` | Turn sound-on-fail on or off. |
 | `malayalamFailSounds.cooldownMs` | number | `2000` | Minimum milliseconds between two triggers. |
 | `malayalamFailSounds.soundsFolder` | string | `""` | Absolute path to your own clips folder. Empty means use the bundled `sounds/malayalam`. |
+| `malayalamFailSounds.playbackMode` | string | `"auto"` | `auto`, `system`, or `webview`. See below. |
 
 Changing `soundsFolder` reloads the sound pool immediately — no window reload
 required.
+
+## Playback modes
+
+The obvious approach — a webview with `<audio autoplay>` — **does not work**.
+Chromium's autoplay policy rejects it with `NotAllowedError: play() can only be
+initiated by a user gesture`, because a Command Palette invocation or a failing
+terminal command is not a click inside the webview document. So playback goes
+through the OS instead:
+
+| Platform | Player used |
+| --- | --- |
+| macOS | `afplay` (ships with the OS) |
+| Windows | PowerShell — `Media.SoundPlayer` for `.wav`, `MediaPlayer` for `.mp3`/`.ogg` |
+| Linux | first of `ffplay`, `paplay`, `play` (sox), `mpg123`, `aplay` that is installed |
+
+If no player is found, it falls back to the webview panel, which shows an
+**"Enable fail sounds"** button. One click grants that document sticky user
+activation and every later clip plays normally, for as long as the tab stays
+open.
+
+`playbackMode` forces the choice: `system` never opens a panel, `webview`
+always uses one, `auto` (the default) prefers the system player.
 
 ## Copyright note on audio
 
