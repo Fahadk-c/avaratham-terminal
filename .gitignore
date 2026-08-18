@@ -2,3 +2,6 @@ out/
 node_modules/
 *.vsix
 .vscode-test/
+
+# local scratch
+TODO.local.md
