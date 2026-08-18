@@ -41,6 +41,10 @@ function pickSound(): string | null {
   return choice;
 }
 
+function getNonce(): string {
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
 function playSound(context: vscode.ExtensionContext, filePath: string) {
   if (!activePanel) {
     activePanel = vscode.window.createWebviewPanel(
@@ -56,13 +60,38 @@ function playSound(context: vscode.ExtensionContext, filePath: string) {
     activePanel.onDidDispose(() => {
       activePanel = undefined;
     });
+    activePanel.webview.onDidReceiveMessage((msg: string) => {
+      vscode.window.showInformationMessage(`Fail Sound debug: ${msg}`);
+    });
   }
 
-  const audioUri = activePanel.webview.asWebviewUri(vscode.Uri.file(filePath));
-  activePanel.webview.html = `<!DOCTYPE html>
-    <html><body style="margin:0;background:transparent;">
-      <audio autoplay src="${audioUri}"></audio>
-    </body></html>`;
+  const webview = activePanel.webview;
+  const audioUri = webview.asWebviewUri(vscode.Uri.file(filePath));
+  const nonce = getNonce();
+
+  webview.html = `<!DOCTYPE html>
+    <html>
+    <head>
+      <meta http-equiv="Content-Security-Policy"
+            content="default-src 'none'; media-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
+    </head>
+    <body style="margin:0;background:transparent;">
+      <audio id="clip" src="${audioUri}?t=${nonce}"></audio>
+      <script nonce="${nonce}">
+        const vscodeApi = acquireVsCodeApi();
+        const clip = document.getElementById('clip');
+        clip.onerror = () => {
+          const err = clip.error;
+          vscodeApi.postMessage('LOAD FAILED code=' + (err ? err.code : '?') + ' ' + (err ? err.message : ''));
+        };
+        clip.onplaying = () => vscodeApi.postMessage('PLAYING (audio started)');
+        clip.play().then(
+          () => vscodeApi.postMessage('play() resolved OK'),
+          (e) => vscodeApi.postMessage('play() REJECTED ' + e.name + ': ' + e.message)
+        );
+      </script>
+    </body>
+    </html>`;
 }
 
 function triggerFailSound(context: vscode.ExtensionContext) {
