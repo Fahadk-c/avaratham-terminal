@@ -26,8 +26,8 @@
         },
         "malayalamFailSounds.cooldownMs": {
           "type": "number",
-          "default": 2000,
-          "description": "Minimum milliseconds between two sound triggers, to avoid spamming on repeated fast failures."
+          "default": 3000,
+          "description": "Minimum milliseconds between two sound triggers, to avoid spamming on repeated fast failures. Keep this at or above the length of your longest clip."
         },
         "malayalamFailSounds.enabled": {
           "type": "boolean",

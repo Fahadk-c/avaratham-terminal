@@ -79,7 +79,7 @@ Both are available from the Command Palette (<kbd>Cmd/Ctrl</kbd> +
 | Setting | Type | Default | Description |
 | --- | --- | --- | --- |
 | `malayalamFailSounds.enabled` | boolean | `true` | Turn sound-on-fail on or off. |
-| `malayalamFailSounds.cooldownMs` | number | `2000` | Minimum milliseconds between two triggers. |
+| `malayalamFailSounds.cooldownMs` | number | `3000` | Minimum milliseconds between two triggers. Keep at or above your longest clip. |
 | `malayalamFailSounds.soundsFolder` | string | `""` | Absolute path to your own clips folder. Empty means use the bundled `sounds/malayalam`. |
 | `malayalamFailSounds.playbackMode` | string | `"auto"` | `auto`, `system`, or `webview`. See below. |
 | `malayalamFailSounds.ignoredExitCodes` | number[] | `[130]` | Exit codes that never trigger a sound. |
@@ -111,7 +111,7 @@ with a one-time warning rather than silencing everything.
 CoreAudio has no Ogg Vorbis support, so `afplay` fails and the clip is silently
 skipped with no error.
 
-Keep clips at or under the `cooldownMs` value (2 seconds by default). Nothing
+Keep clips at or under the `cooldownMs` value (3 seconds by default). Nothing
 interrupts a clip that is already playing, so anything longer can overlap with
 the next one.
 

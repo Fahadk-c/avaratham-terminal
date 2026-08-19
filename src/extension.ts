@@ -309,7 +309,7 @@ function isIgnoredFailure(e: vscode.TerminalShellExecutionEndEvent): boolean {
 function triggerFailSound(context: vscode.ExtensionContext) {
   if (!getConfig().get<boolean>('enabled', true)) return;
 
-  const cooldownMs = getConfig().get<number>('cooldownMs', 2000);
+  const cooldownMs = getConfig().get<number>('cooldownMs', 3000);
   const now = Date.now();
   if (now - lastTriggerTime < cooldownMs) return;
 
