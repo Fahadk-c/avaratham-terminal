@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { spawn, execFileSync } from 'child_process';
 
-const AUDIO_EXTENSIONS = /\.(mp3|wav|ogg)$/i;
+const AUDIO_EXTENSIONS = /\.(mp3|m4a|aac|wav|ogg)$/i;
 
 let soundPool: string[] = [];
 let lastPlayed: string | null = null;
@@ -365,7 +365,7 @@ export function activate(context: vscode.ExtensionContext) {
         playSound(context, sound);
       } else {
         vscode.window.showWarningMessage(
-          'No sound files found. Add .mp3/.wav files to the sounds/malayalam folder, or set malayalamFailSounds.soundsFolder.'
+          'No sound files found. Add .mp3/.m4a/.wav files to the sounds/malayalam folder, or set malayalamFailSounds.soundsFolder.'
         );
       }
     })

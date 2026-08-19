@@ -56,7 +56,7 @@ npm run generate-placeholders
 They exist only so the extension has something to play out of the box. To use
 real clips, either:
 
-1. Drop `.mp3`, `.wav` or `.ogg` files straight into `sounds/malayalam/`
+1. Drop `.mp3`, `.m4a`, `.aac`, `.wav` or `.ogg` files straight into `sounds/malayalam/`
    (and delete the `placeholder-*.wav` files), or
 2. Point the extension at any folder on disk via the
    `malayalamFailSounds.soundsFolder` setting.
@@ -102,6 +102,18 @@ settings filter them out:
 Word boundaries in the defaults keep them narrow: `grep foo` is silent, but
 `grepper` and `git difftool` still make noise. An invalid regex is skipped
 with a one-time warning rather than silencing everything.
+
+## Audio formats
+
+`.mp3`, `.m4a`, `.aac`, `.wav` and `.ogg` are picked up from the sounds folder.
+
+`.mp3` and `.m4a`/`.aac` are the safe choices. **Avoid `.ogg` on macOS** —
+CoreAudio has no Ogg Vorbis support, so `afplay` fails and the clip is silently
+skipped with no error.
+
+Keep clips at or under the `cooldownMs` value (2 seconds by default). Nothing
+interrupts a clip that is already playing, so anything longer can overlap with
+the next one.
 
 ## Playback modes
 
