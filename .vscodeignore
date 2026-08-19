@@ -7,3 +7,5 @@ tsconfig.json
 **/*.ts
 node_modules/**
 !node_modules/**/*.js
+TODO.local.md
+scripts/**

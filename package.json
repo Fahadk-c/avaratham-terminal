@@ -5,6 +5,10 @@
   "version": "0.0.1",
   "publisher": "Fahadk-c",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Fahadk-c/malayalam-fail-sounds.git"
+  },
   "engines": {
     "vscode": "^1.94.0"
   },
@@ -94,6 +98,7 @@
   "devDependencies": {
     "@types/node": "^20.0.0",
     "@types/vscode": "^1.94.0",
+    "@vscode/vsce": "^3.9.2",
     "typescript": "^5.5.0"
   }
 }
