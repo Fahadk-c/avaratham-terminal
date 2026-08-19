@@ -11,4 +11,4 @@ Notes:
 - Only use audio you actually have the rights to use/distribute —
   see the Copyright note in the main README before publishing publicly.
 - You can also point the extension at a different folder entirely via
-  the `malayalamFailSounds.soundsFolder` setting, instead of using this one.
+  the `avarathamTerminal.soundsFolder` setting, instead of using this one.

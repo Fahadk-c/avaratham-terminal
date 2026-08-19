@@ -19,7 +19,7 @@ type SystemPlayer = { cmd: string; args: (file: string) => string[] };
 let systemPlayer: SystemPlayer | null | undefined;
 
 function getConfig() {
-  return vscode.workspace.getConfiguration('malayalamFailSounds');
+  return vscode.workspace.getConfiguration('avarathamTerminal');
 }
 
 function resolveSoundsFolder(extensionPath: string): string {
@@ -203,7 +203,7 @@ function webviewHtml(webview: vscode.Webview): string {
 function playViaWebview(context: vscode.ExtensionContext, filePath: string) {
   if (!activePanel) {
     activePanel = vscode.window.createWebviewPanel(
-      'malayalamFailSoundPlayer',
+      'avarathamTerminalPlayer',
       'Fail Sound',
       { viewColumn: vscode.ViewColumn.Beside, preserveFocus: true },
       {
@@ -236,7 +236,7 @@ function playViaWebview(context: vscode.ExtensionContext, filePath: string) {
       } else if (msg?.type === 'blocked' && !warnedAboutUnlock) {
         warnedAboutUnlock = true;
         vscode.window.showWarningMessage(
-          'Malayalam Fail Sounds: click "Enable fail sounds" once in the Fail Sound panel to allow audio playback.'
+          'Avaratham Terminal: click "Enable fail sounds" once in the Fail Sound panel to allow audio playback.'
         );
       }
     });
@@ -267,7 +267,7 @@ function playSound(context: vscode.ExtensionContext, filePath: string) {
 
   if (mode === 'system') {
     vscode.window.showWarningMessage(
-      'Malayalam Fail Sounds: no system audio player found. Set malayalamFailSounds.playbackMode to "auto" to fall back to the built-in player.'
+      'Avaratham Terminal: no system audio player found. Set avarathamTerminal.playbackMode to "auto" to fall back to the built-in player.'
     );
     return;
   }
@@ -297,7 +297,7 @@ function isIgnoredFailure(e: vscode.TerminalShellExecutionEndEvent): boolean {
       if (!warnedInvalidPattern) {
         warnedInvalidPattern = true;
         vscode.window.showWarningMessage(
-          `Malayalam Fail Sounds: ignoring invalid regex in malayalamFailSounds.ignoredCommands: ${pattern}`
+          `Avaratham Terminal: ignoring invalid regex in avarathamTerminal.ignoredCommands: ${pattern}`
         );
       }
     }
@@ -337,35 +337,35 @@ export function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((e) => {
-      if (e.affectsConfiguration('malayalamFailSounds.soundsFolder')) {
+      if (e.affectsConfiguration('avarathamTerminal.soundsFolder')) {
         loadSounds(context.extensionPath);
       }
-      if (e.affectsConfiguration('malayalamFailSounds.playbackMode')) {
+      if (e.affectsConfiguration('avarathamTerminal.playbackMode')) {
         systemPlayer = undefined; // re-probe on next play
       }
     })
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('malayalamFailSounds.toggle', async () => {
+    vscode.commands.registerCommand('avarathamTerminal.toggle', async () => {
       const config = getConfig();
       const current = config.get<boolean>('enabled', true);
       await config.update('enabled', !current, vscode.ConfigurationTarget.Global);
       vscode.window.showInformationMessage(
-        `Malayalam Fail Sounds: ${!current ? 'enabled' : 'disabled'}`
+        `Avaratham Terminal: ${!current ? 'enabled' : 'disabled'}`
       );
     })
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand('malayalamFailSounds.testSound', () => {
+    vscode.commands.registerCommand('avarathamTerminal.testSound', () => {
       loadSounds(context.extensionPath);
       const sound = pickSound();
       if (sound) {
         playSound(context, sound);
       } else {
         vscode.window.showWarningMessage(
-          'No sound files found. Add .mp3/.m4a/.wav files to the sounds/malayalam folder, or set malayalamFailSounds.soundsFolder.'
+          'No sound files found. Add .mp3/.m4a/.wav files to the sounds/malayalam folder, or set avarathamTerminal.soundsFolder.'
         );
       }
     })

@@ -1,13 +1,13 @@
 {
-  "name": "malayalam-fail-sounds",
-  "displayName": "Malayalam Fail Sounds",
+  "name": "avaratham-terminal",
+  "displayName": "Avaratham Terminal",
   "description": "Plays a random Malayalam sound clip whenever a terminal command exits with a non-zero code.",
   "version": "0.0.1",
   "publisher": "Fahadk-c",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Fahadk-c/malayalam-fail-sounds.git"
+    "url": "https://github.com/Fahadk-c/avaratham-terminal.git"
   },
   "engines": {
     "vscode": "^1.94.0"
@@ -23,22 +23,22 @@
     "configuration": {
       "title": "Malayalam Fail Sounds",
       "properties": {
-        "malayalamFailSounds.soundsFolder": {
+        "avarathamTerminal.soundsFolder": {
           "type": "string",
           "default": "",
           "description": "Optional absolute path to a folder of your own .mp3/.wav clips. If empty, uses the bundled sounds/malayalam folder."
         },
-        "malayalamFailSounds.cooldownMs": {
+        "avarathamTerminal.cooldownMs": {
           "type": "number",
           "default": 3000,
           "description": "Minimum milliseconds between two sound triggers, to avoid spamming on repeated fast failures. Keep this at or above the length of your longest clip."
         },
-        "malayalamFailSounds.enabled": {
+        "avarathamTerminal.enabled": {
           "type": "boolean",
           "default": true,
           "description": "Toggle sound-on-fail on or off."
         },
-        "malayalamFailSounds.playbackMode": {
+        "avarathamTerminal.playbackMode": {
           "type": "string",
           "enum": [
             "auto",
@@ -53,7 +53,7 @@
           "default": "auto",
           "description": "How sounds are played. 'auto' is recommended: it needs no interaction, while the webview player is subject to the browser autoplay policy."
         },
-        "malayalamFailSounds.ignoredExitCodes": {
+        "avarathamTerminal.ignoredExitCodes": {
           "type": "array",
           "items": {
             "type": "number"
@@ -63,7 +63,7 @@
           ],
           "description": "Exit codes that should never trigger a sound. 130 is Ctrl+C, which is not really a failure."
         },
-        "malayalamFailSounds.ignoredCommands": {
+        "avarathamTerminal.ignoredCommands": {
           "type": "array",
           "items": {
             "type": "string"
@@ -80,11 +80,11 @@
     },
     "commands": [
       {
-        "command": "malayalamFailSounds.toggle",
+        "command": "avarathamTerminal.toggle",
         "title": "Malayalam Fail Sounds: Toggle On/Off"
       },
       {
-        "command": "malayalamFailSounds.testSound",
+        "command": "avarathamTerminal.testSound",
         "title": "Malayalam Fail Sounds: Play a Random Test Sound"
       }
     ]
